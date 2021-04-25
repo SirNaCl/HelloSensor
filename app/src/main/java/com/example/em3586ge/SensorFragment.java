@@ -1,0 +1,167 @@
+package com.example.em3586ge;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Vibrator;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
+import androidx.fragment.app.Fragment;
+
+import static android.content.Context.SENSOR_SERVICE;
+
+/**
+ * A simple {@link Fragment} subclass.
+ * Use the {@link SensorFragment#newInstance} factory method to
+ * create an instance of this fragment.
+ */
+public class SensorFragment extends Fragment implements SensorEventListener {
+    CustomBallView mCustomDrawableView = null;
+    TextView xValueTextView = null;
+    TextView yValueTextView = null;
+    TextView zValueTextView = null;
+
+    Vibrator vib = null;
+
+    private Ball ball;
+    private Bitmap mBitmap;
+    private SensorManager sensorManager = null;
+
+    public SensorFragment() {
+        // Required empty public constructor
+    }
+
+    /**
+     * Use this factory method to create a new instance of
+     * this fragment using the provided parameters.
+     *
+     * @return A new instance of fragment SensorFragment.
+     */
+    // TODO: Rename and change types and number of parameters
+    public static SensorFragment newInstance() {
+        SensorFragment fragment = new SensorFragment();
+        Bundle args = new Bundle();
+        fragment.setArguments(args);
+        return fragment;
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        // Inflate the layout for this fragment
+        return inflater.inflate(R.layout.fragment_sensor, container, false);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+
+        sensorManager = (SensorManager) getActivity().getSystemService(SENSOR_SERVICE);
+        // Get views on screen
+        FrameLayout ballFrameLayout = (FrameLayout) getActivity().findViewById(R.id.ballFrameLayout);
+        xValueTextView = (TextView) getActivity().findViewById(R.id.xValueTextView);
+        yValueTextView = (TextView) getActivity().findViewById(R.id.yValueTextView);
+        zValueTextView = (TextView) getActivity().findViewById(R.id.zValueTextView);
+        // Create Objects for ball mini-game
+        ball = new Ball(ballFrameLayout);
+        mCustomDrawableView = new CustomBallView(getActivity(), ball);
+        vib = (Vibrator) getActivity().getSystemService(Context.VIBRATOR_SERVICE);
+        ballFrameLayout.addView(mCustomDrawableView);
+
+
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        // to stop the listener and save battery
+        sensorManager.unregisterListener(this);
+    }
+    @Override
+    public void onResume() {
+        super.onResume();
+        // code for system's orientation sensor registered listeners
+        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION),
+                SensorManager.SENSOR_DELAY_GAME);
+    }
+
+    // This method will update the UI on new sensor events
+    @SuppressLint("DefaultLocale")
+    public void onSensorChanged(SensorEvent sensorEvent)
+    {
+        if(sensorEvent.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            //Set sensor values as acceleration
+            ball.setAcceleration(-sensorEvent.values[0] / 2, sensorEvent.values[1] / 2);
+            ball.update();
+
+            if (ball.hasNewCollision()){
+                vibrate();
+            }
+
+        }else if(sensorEvent.sensor.getType() == Sensor.TYPE_LINEAR_ACCELERATION){
+            // Displays accelerometer values in correct text-fields
+            xValueTextView.setText(String.format("%,.2f", sensorEvent.values[0]));
+            yValueTextView.setText(String.format("%,.2f", sensorEvent.values[1]));
+            zValueTextView.setText(String.format("%,.2f", sensorEvent.values[2]));
+        }
+
+    }
+
+
+    private void vibrate() {
+        vib.vibrate(20);
+        System.out.println("Vibration");
+    }
+
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        //Autogenerated
+    }
+
+    // Custom view component that is used for displaying the ball
+    public class CustomBallView extends View
+    {
+        static final int dstWidth = 50;
+        static final int dstHeight = 50;
+        private final Ball ball;
+        public CustomBallView(Context context, Ball ball)
+        {
+            super(context);
+            this.ball = ball;
+            Bitmap ballMap = BitmapFactory.decodeResource(getResources(), R.drawable.ball);
+            mBitmap = Bitmap.createScaledBitmap(ballMap, dstWidth, dstHeight, true);
+        }
+
+        protected void onDraw(Canvas canvas)
+        {
+            final Bitmap bitmap = mBitmap;
+            canvas.drawBitmap(bitmap, ball.getX(), ball.getY(), null);
+            invalidate();
+        }
+
+    }
+}
